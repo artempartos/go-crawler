@@ -8,18 +8,18 @@ import (
 type Worker struct {
 	outToMaster     ResponseChan
 	in              StringChan
-	outToController WorkerChan
+	workerChan WorkerChan
 }
 
-func NewWorker(channelToController WorkerChan, RespChannel ResponseChan) *Worker {
+func NewWorker(RespChannel ResponseChan, workerChan WorkerChan) *Worker {
     StrIn := make(StringChan)
-	return &Worker{outToMaster: RespChannel, outToController: channelToController, in: StrIn}
+	return &Worker{outToMaster: RespChannel, workerChan: workerChan, in: StrIn}
 }
 
 func (w *Worker) Run() {
 	go func() {
 		for {
-		    w.outToController <- w
+		    w.workerChan <- w
 
 			link := <-w.in
 			resp := w.process(link)

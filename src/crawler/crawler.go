@@ -6,12 +6,14 @@ import (
 )
 
 var Domen string
+var WorkersCount int = 20
 
 type Crawler struct {
 	domen       string
+	links       []string
 	in_channel  ResponseChan
-	out_channel StringChan
 	result      map[string]string
+	workers     WorkerChan
 }
 
 type Response struct {
@@ -26,22 +28,37 @@ type WorkerChan chan *Worker
 
 func NewCrawler(domen string) *Crawler {
 	in := make(ResponseChan)
-	out := make(StringChan, 50)
+	workers := make(WorkerChan, WorkersCount )
 	result := make(map[string]string)
 	Domen = domen
-	return &Crawler{domen: domen, in_channel: in, out_channel: out, result: result}
+	return &Crawler{domen: domen, in_channel: in, result: result, workers: workers}
 }
 
 func (c *Crawler) Run() {
-	controller := NewController(c.in_channel, c.out_channel, 10)
-	controller.Run()
-	root := ""
-	c.AddToQueue(root)
-	//TODO fix on select for read/write
-	for {
-		response := <-c.in_channel
-		c.ResponseProcess(response)
-	}
+
+	for i := 0; i < WorkersCount; i++ {
+        w := NewWorker(c.in_channel, c.workers)
+        w.Run()
+    }
+
+    root := ""
+    c.AddToQueue(root)
+
+    for {
+        hasWork := len(c.links) > 0
+        select {
+        case response := <-c.in_channel:
+            c.ResponseProcess(response)
+        case worker := <- c.workers:
+            if hasWork {
+                link := c.links[0]
+                c.links = c.links[1:]
+                worker.Process(link)
+            } else {
+                c.workers <- worker
+            }
+        }
+    }
 }
 
 func (c *Crawler) ResponseProcess(response Response) {
@@ -85,7 +102,7 @@ func (c *Crawler) AddToQueue(link string) {
 	_, ok := c.result[link]
 	if !ok {
 		c.result[link] = "inQueue"
-		c.out_channel <- link
+        c.links = append(c.links, link)
 	}
 }
 
@@ -110,7 +127,4 @@ func PrintResponse(result map[string]string) {
 
 	}
 	fmt.Printf("\tok: %v, queue: %v, domen: %v, anchor: %v, failed: %v\n", ok, queue, domen, anchor, failed)
-	if ok == 84 {
-		fmt.Println(result)
-	}
 }
