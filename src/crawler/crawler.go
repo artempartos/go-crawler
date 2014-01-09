@@ -64,7 +64,7 @@ func (c *Crawler) LinkProcess(link string) {
 	if isAbsolute {
 		sameDomen, _ := regexp.MatchString("*"+Domen+"*", link)
 		if sameDomen {
-			reg := regexp.MustCompile(Domen)
+			reg := regexp.MustCompile(Domen+"/")
 			relative := reg.ReplaceAllString(link, "")
 			c.AddToQueue(relative)
 		} else {
