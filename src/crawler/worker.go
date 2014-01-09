@@ -6,25 +6,25 @@ import (
 )
 
 type Worker struct {
-	outToMaster     ResponseChan
-	in              StringChan
-	workerChan WorkerChan
+	in    linkChan
+	out   responseChan
+	free  workerChan
 }
 
-func NewWorker(RespChannel ResponseChan, workerChan WorkerChan) *Worker {
-    StrIn := make(StringChan)
-	return &Worker{outToMaster: RespChannel, workerChan: workerChan, in: StrIn}
+func NewWorker(free workerChan, out responseChan) *Worker {
+    in := make(linkChan)
+	return &Worker{in, out, free}
 }
 
 func (w *Worker) Run() {
 	go func() {
 		for {
-		    w.workerChan <- w
+            w.free <- w
 
 			link := <-w.in
 			resp := w.process(link)
 
-			w.outToMaster <- resp
+			w.out <- resp
 		}
 	}()
 }
@@ -34,9 +34,8 @@ func (w *Worker) Process(link string) {
 }
 
 func (w *Worker) process(link string) Response {
-	fmt.Println("processing... ", "/" + link)
-
-	x, err := goquery.ParseUrl(Domen + "/" + link)
+	fmt.Println("processing... ", link)
+	x, err := goquery.ParseUrl(link)
 
 	if err == nil {
 		links := x.Find("a").Attrs("href")

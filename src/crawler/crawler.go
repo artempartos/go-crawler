@@ -5,15 +5,18 @@ import (
 	"regexp"
 )
 
-var Domen string
-var WorkersCount int = 20
+type responseChan chan Response
+type linkChan chan string
+type workerChan chan *Worker
+type resultMap map[string]string
 
 type Crawler struct {
 	domen       string
-	links       []string
-	in_channel  ResponseChan
-	result      map[string]string
-	workers     WorkerChan
+	in          responseChan
+	out         linkChan
+    workers     workerChan
+	result      resultMap
+    links       []string
 }
 
 type Response struct {
@@ -22,46 +25,49 @@ type Response struct {
 	current string
 }
 
-type ResponseChan chan Response
-type StringChan chan string
-type WorkerChan chan *Worker
-
 func NewCrawler(domen string) *Crawler {
-	in := make(ResponseChan)
-	workers := make(WorkerChan, WorkersCount )
-	result := make(map[string]string)
-	Domen = domen
-	return &Crawler{domen: domen, in_channel: in, result: result, workers: workers}
+    in := make(responseChan)
+    out := make(linkChan)
+    workers := make(workerChan)
+    result := make(resultMap)
+    return &Crawler{ domen, in, out, workers, result, []string{} }
 }
 
-func (c *Crawler) Run() {
-    root := ""
 
-    c.runWorkers(WorkersCount)
-    c.AddToQueue(root)
+func (c *Crawler) Run(workersCount int) {
+    c.runWorkers(workersCount)
+    c.PushLink(c.domen)
 
     for {
-        hasWork := len(c.links) > 0
-        select {
-        case response := <-c.in_channel:
-            c.ResponseProcess(response)
-        case worker := <- c.workers:
-            if hasWork {
-                link := c.links[0]
-                c.links = c.links[1:]
-                worker.Process(link)
-            } else {
-                c.workers <- worker
+        if c.HasLink() {
+            select {
+                case response := <-c.in:
+                    c.ResponseProcess(response)
+                case worker := <-c.workers:
+                    worker.Process(c.PopLink())
             }
+        } else {
+            response := <-c.in
+                c.ResponseProcess(response)
         }
     }
 }
 
-func (c *Crawler) runWorkers(count int) {
-    for i := 0; i < count; i++ {
-        w := NewWorker(c.in_channel, c.workers)
-        w.Run()
-    }
+func (c *Crawler) runWorkers (count int) {
+	for i := 0; i < count; i++ {
+		w := NewWorker(c.workers, c.in)
+		w.Run()
+	}
+}
+
+func (c *Crawler) PopLink () string {
+  var link string
+  link, c.links = c.links[len(c.links)-1], c.links[:len(c.links)-1]
+  return link
+}
+
+func (c *Crawler) HasLink () bool {
+  return len(c.links) > 0
 }
 
 func (c *Crawler) ResponseProcess(response Response) {
@@ -81,11 +87,9 @@ func (c *Crawler) LinkProcess(link string) {
 	isAbsolute, _ := regexp.MatchString("http*", link)
 
 	if isAbsolute {
-		sameDomen, _ := regexp.MatchString("*"+Domen+"*", link)
+		sameDomen, _ := regexp.MatchString("*"+c.domen+"*", link)
 		if sameDomen {
-			reg := regexp.MustCompile(Domen+"/")
-			relative := reg.ReplaceAllString(link, "")
-			c.AddToQueue(relative)
+			c.PushLink(link)
 		} else {
 			c.result[link] = "anotherDomen"
 		}
@@ -95,12 +99,13 @@ func (c *Crawler) LinkProcess(link string) {
 		if isAnchor {
 			c.result[link] = "Anchor"
 		} else {
-			c.AddToQueue(link)
+		    absolute := c.domen + link
+			c.PushLink(absolute)
 		}
 	}
 }
 
-func (c *Crawler) AddToQueue(link string) {
+func (c *Crawler) PushLink(link string) {
 	_, ok := c.result[link]
 	if !ok {
 		c.result[link] = "inQueue"
