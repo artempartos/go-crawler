@@ -2,7 +2,6 @@ package crawler
 
 import (
 	"fmt"
-	"log"
 	"regexp"
 )
 
@@ -38,8 +37,8 @@ func (c *Crawler) Run() {
 	controller.Run()
 	root := ""
 	c.AddToQueue(root)
+	//TODO fix on select for read/write
 	for {
-        log.Println("master wait response")
 		response := <-c.in_channel
 		c.ResponseProcess(response)
 	}
@@ -86,9 +85,6 @@ func (c *Crawler) AddToQueue(link string) {
 	_, ok := c.result[link]
 	if !ok {
 		c.result[link] = "inQueue"
-		log.Println("master send link")
-		log.Println(len(c.out_channel))
-		log.Println(link)
 		c.out_channel <- link
 	}
 }
@@ -113,7 +109,7 @@ func PrintResponse(result map[string]string) {
 		}
 
 	}
-	fmt.Printf("\tok: %v, queue: %v, domen: %v, anchor: %v, failed: %v\n\n", ok, queue, domen, anchor, failed)
+	fmt.Printf("\tok: %v, queue: %v, domen: %v, anchor: %v, failed: %v\n", ok, queue, domen, anchor, failed)
 	if ok == 84 {
 		fmt.Println(result)
 	}

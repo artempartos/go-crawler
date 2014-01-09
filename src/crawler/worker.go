@@ -3,7 +3,6 @@ package crawler
 import (
 	"fmt"
 	"github.com/opesun/goquery"
-	"log"
 )
 
 type Worker struct {
@@ -20,14 +19,11 @@ func NewWorker(channelToController WorkerChan, RespChannel ResponseChan) *Worker
 func (w *Worker) Run() {
 	go func() {
 		for {
-		    log.Println("worker send self to controller")
 		    w.outToController <- w
 
-		    log.Println("worker wait link")
 			link := <-w.in
 			resp := w.process(link)
 
-			log.Println("worker send response")
 			w.outToMaster <- resp
 		}
 	}()

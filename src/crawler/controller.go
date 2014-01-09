@@ -1,7 +1,5 @@
 package crawler
 
-import "log"
-
 type Controller struct {
 	channelForResponse ResponseChan
 	channelForWorkers  WorkerChan
@@ -22,13 +20,8 @@ func (cont *Controller) Run() {
 
 	go func() {
 		for {
-		    log.Println("controller wait worker")
 			worker := <-cont.channelForWorkers
-			log.Println("controller have free worker")
-			log.Println("controller wait link")
 			link := <-cont.inChannel
-			log.Println("Controller read link", link)
-			log.Println("controller send link")
 			worker.Process(link)
 		}
 	}()
