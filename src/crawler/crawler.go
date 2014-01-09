@@ -35,13 +35,9 @@ func NewCrawler(domen string) *Crawler {
 }
 
 func (c *Crawler) Run() {
-
-	for i := 0; i < WorkersCount; i++ {
-        w := NewWorker(c.in_channel, c.workers)
-        w.Run()
-    }
-
     root := ""
+
+    c.runWorkers(WorkersCount)
     c.AddToQueue(root)
 
     for {
@@ -61,9 +57,15 @@ func (c *Crawler) Run() {
     }
 }
 
+func (c *Crawler) runWorkers(count int) {
+    for i := 0; i < count; i++ {
+        w := NewWorker(c.in_channel, c.workers)
+        w.Run()
+    }
+}
+
 func (c *Crawler) ResponseProcess(response Response) {
 	if response.success {
-
 		c.result[response.current] = "ok"
 		for _, link := range response.links {
 			c.LinkProcess(link)
