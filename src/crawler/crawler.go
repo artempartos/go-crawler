@@ -2,6 +2,7 @@ package crawler
 
 import (
 	"fmt"
+	"net/url"
 	"regexp"
 )
 
@@ -9,9 +10,8 @@ type responseChan chan CrawlerResponse
 type linkChan chan string
 type workerChan chan *Worker
 type resultMap map[string]string
-
 type Crawler struct {
-	domen   string
+	domen   *url.URL
 	in      responseChan
 	out     linkChan
 	workers workerChan
@@ -30,13 +30,17 @@ func NewCrawler(domen string) *Crawler {
 	out := make(linkChan)
 	workers := make(workerChan)
 	result := make(resultMap)
-	return &Crawler{domen, in, out, workers, result, []string{}}
+	domen_link, _ := url.Parse(domen)
+	return &Crawler{domen_link, in, out, workers, result, []string{}}
 }
 
 func (c *Crawler) Run(workersCount int) {
 	c.runWorkers(workersCount)
-	c.PushLink(c.domen)
+	c.PushLink(c.domen.String())
+	c.RunLoop()
+}
 
+func (c *Crawler) RunLoop() {
 	for {
 		if c.HasLink() {
 			select {
@@ -65,6 +69,14 @@ func (c *Crawler) PopLink() string {
 	return link
 }
 
+func (c *Crawler) PushLink(link string) {
+	_, ok := c.result[link]
+	if !ok {
+		c.result[link] = "inQueue"
+		c.links = append(c.links, link)
+	}
+}
+
 func (c *Crawler) HasLink() bool {
 	return len(c.links) > 0
 }
@@ -72,7 +84,8 @@ func (c *Crawler) HasLink() bool {
 func (c *Crawler) ResponseProcess(response CrawlerResponse) {
 	if response.success {
 		c.result[response.current] = "ok"
-		for _, link := range response.links {
+		for _, link_string := range response.links {
+			link, _ := url.Parse(link_string)
 			c.LinkProcess(link)
 		}
 	} else {
@@ -81,31 +94,22 @@ func (c *Crawler) ResponseProcess(response CrawlerResponse) {
 	PrintResponse(c.result)
 }
 
-func (c *Crawler) LinkProcess(link string) {
-	isAbsolute, _ := regexp.MatchString("http*", link)
-	if isAbsolute {
-		sameDomen, _ := regexp.MatchString(c.domen+"*", link)
-		if sameDomen {
-			c.PushLink(link)
+func (c *Crawler) LinkProcess(url *url.URL) {
+
+	if url.IsAbs() {
+		if url.Host == c.domen.Host {
+			c.PushLink(url.String())
 		} else {
-			c.result[link] = "anotherDomen"
+			c.result[url.String()] = "anotherDomen"
 		}
 	} else {
-		isAnchor, _ := regexp.MatchString("#", link)
+		isAnchor, _ := regexp.MatchString("#", url.String())
 		if isAnchor {
-			c.result[link] = "Anchor"
+			c.result[url.String()] = "Anchor"
 		} else {
-			absolute := c.domen + "/" + link
+			absolute := c.domen.String() + "/" + url.String()
 			c.PushLink(absolute)
 		}
-	}
-}
-
-func (c *Crawler) PushLink(link string) {
-	_, ok := c.result[link]
-	if !ok {
-		c.result[link] = "inQueue"
-		c.links = append(c.links, link)
 	}
 }
 
