@@ -34,19 +34,23 @@ func (w *Worker) Process(link string) {
 
 func (w *Worker) process(link string) CrawlerResponse {
 	response, err := http.Get(link)
-	if err != nil || response.StatusCode == 404 {
+
+	if err == nil {
+		fmt.Println("processing... ", link, response.StatusCode)
+		defer response.Body.Close()
+	}
+
+	switch {
+	case err != nil || response.StatusCode == 404:
 		return CrawlerResponse{success: false, current: link}
-	} else {
+	default:
 		return ProcessHttpResponse(response, link)
 	}
+
 }
 
 func ProcessHttpResponse(resp *http.Response, link string) CrawlerResponse {
-	fmt.Println("processing... ", link, resp.StatusCode)
-
-	defer resp.Body.Close()
 	x, err := goquery.Parse(resp.Body)
-
 	if err == nil {
 		links := x.Find("a").Attrs("href")
 		return CrawlerResponse{success: true, current: link, links: links}

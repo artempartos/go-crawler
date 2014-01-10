@@ -75,7 +75,6 @@ func (c *Crawler) ResponseProcess(response CrawlerResponse) {
 		for _, link := range response.links {
 			c.LinkProcess(link)
 		}
-
 	} else {
 		c.result[response.current] = "fail"
 	}
@@ -84,7 +83,6 @@ func (c *Crawler) ResponseProcess(response CrawlerResponse) {
 
 func (c *Crawler) LinkProcess(link string) {
 	isAbsolute, _ := regexp.MatchString("http*", link)
-
 	if isAbsolute {
 		sameDomen, _ := regexp.MatchString(c.domen+"*", link)
 		if sameDomen {
@@ -92,13 +90,12 @@ func (c *Crawler) LinkProcess(link string) {
 		} else {
 			c.result[link] = "anotherDomen"
 		}
-
 	} else {
 		isAnchor, _ := regexp.MatchString("#", link)
 		if isAnchor {
 			c.result[link] = "Anchor"
 		} else {
-			absolute := c.domen + link
+			absolute := c.domen + "/" + link
 			c.PushLink(absolute)
 		}
 	}
@@ -115,29 +112,18 @@ func (c *Crawler) PushLink(link string) {
 func PrintResponse(result map[string]string) {
 	var ok, failed, domen, queue, anchor int
 	for _, v := range result {
-		if v == "ok" {
+		switch v {
+		case "ok":
 			ok++
-		}
-		if v == "fail" {
+		case "fail":
 			failed++
-		}
-		if v == "anotherDomen" {
+		case "anotherDomen":
 			domen++
-		}
-		if v == "Anchor" {
+		case "Anchor":
 			anchor++
-		}
-		if v == "inQueue" {
+		case "inQueue":
 			queue++
 		}
-
 	}
 	fmt.Printf("\tok: %v, queue: %v, domen: %v, anchor: %v, failed: %v\n", ok, queue, domen, anchor, failed)
-
-	if false {
-		fmt.Println(result)
-		test := "http://nox73.ru/blabla"
-		fmt.Println(result[test])
-	}
-
 }
