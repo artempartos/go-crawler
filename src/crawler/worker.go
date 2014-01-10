@@ -36,7 +36,7 @@ func (w *Worker) process(link string) CrawlerResponse {
 	response, err := http.Get(link)
 
 	if err == nil {
-		fmt.Println("processing... ", link, response.StatusCode)
+		fmt.Println("processing... ", link, response.Status)
 		defer response.Body.Close()
 	}
 
