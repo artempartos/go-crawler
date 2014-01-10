@@ -5,7 +5,7 @@ import (
 	"regexp"
 )
 
-type responseChan chan Response
+type responseChan chan CrawlerResponse
 type linkChan chan string
 type workerChan chan *Worker
 type resultMap map[string]string
@@ -19,7 +19,7 @@ type Crawler struct {
     links       []string
 }
 
-type Response struct {
+type CrawlerResponse struct {
 	success bool
 	links   []string
 	current string
@@ -70,7 +70,7 @@ func (c *Crawler) HasLink () bool {
   return len(c.links) > 0
 }
 
-func (c *Crawler) ResponseProcess(response Response) {
+func (c *Crawler) ResponseProcess(response CrawlerResponse) {
 	if response.success {
 		c.result[response.current] = "ok"
 		for _, link := range response.links {
@@ -87,7 +87,7 @@ func (c *Crawler) LinkProcess(link string) {
 	isAbsolute, _ := regexp.MatchString("http*", link)
 
 	if isAbsolute {
-		sameDomen, _ := regexp.MatchString("*"+c.domen+"*", link)
+		sameDomen, _ := regexp.MatchString(c.domen+"*", link)
 		if sameDomen {
 			c.PushLink(link)
 		} else {
@@ -134,4 +134,11 @@ func PrintResponse(result map[string]string) {
 
 	}
 	fmt.Printf("\tok: %v, queue: %v, domen: %v, anchor: %v, failed: %v\n", ok, queue, domen, anchor, failed)
+
+	if false {
+        	fmt.Println(result)
+        	test := "http://nox73.ru/blabla"
+        	fmt.Println(result[test])
+	}
+
 }
