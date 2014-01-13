@@ -1,15 +1,15 @@
 package crawler
 
 import (
-	"fmt"
+	"github.com/wsxiaoys/terminal/color"
 	"net/url"
-	"regexp"
 )
 
 type responseChan chan CrawlerResponse
 type linkChan chan string
 type workerChan chan *Worker
-type resultMap map[string]string
+type resultMap map[string]bool
+
 type Crawler struct {
 	domen   *url.URL
 	in      responseChan
@@ -17,10 +17,12 @@ type Crawler struct {
 	workers workerChan
 	result  resultMap
 	links   []string
+	count   int
 }
 
 type CrawlerResponse struct {
 	success bool
+	Status  string
 	links   []string
 	current string
 }
@@ -31,7 +33,7 @@ func NewCrawler(domen string) *Crawler {
 	workers := make(workerChan)
 	result := make(resultMap)
 	domen_link, _ := url.Parse(domen)
-	return &Crawler{domen_link, in, out, workers, result, []string{}}
+	return &Crawler{domen_link, in, out, workers, result, []string{}, 0}
 }
 
 func (c *Crawler) Run(workersCount int) {
@@ -42,16 +44,26 @@ func (c *Crawler) Run(workersCount int) {
 
 func (c *Crawler) RunLoop() {
 	for {
+		var wCh workerChan
 		if c.HasLink() {
-			select {
-			case response := <-c.in:
-				c.ResponseProcess(response)
-			case worker := <-c.workers:
-				worker.Process(c.PopLink())
-			}
-		} else {
-			response := <-c.in
+			wCh = c.workers
+		}
+
+		select {
+		case response := <-c.in:
+			c.count++
 			c.ResponseProcess(response)
+			var col string
+			if response.success {
+				col = "@g"
+			} else {
+				col = "@r"
+			}
+			color.Println(col, "#", c.count, response.current, response.Status)
+		case worker := <-wCh:
+			l := c.PopLink()
+			c.result[l] = true
+			worker.Process(l)
 		}
 	}
 }
@@ -72,7 +84,6 @@ func (c *Crawler) PopLink() string {
 func (c *Crawler) PushLink(link string) {
 	_, ok := c.result[link]
 	if !ok {
-		c.result[link] = "inQueue"
 		c.links = append(c.links, link)
 	}
 }
@@ -83,51 +94,21 @@ func (c *Crawler) HasLink() bool {
 
 func (c *Crawler) ResponseProcess(response CrawlerResponse) {
 	if response.success {
-		c.result[response.current] = "ok"
 		for _, link_string := range response.links {
-			link, _ := url.Parse(link_string)
-			c.LinkProcess(link)
-		}
-	} else {
-		c.result[response.current] = "fail"
-	}
-	PrintResponse(c.result)
-}
-
-func (c *Crawler) LinkProcess(url *url.URL) {
-
-	if url.IsAbs() {
-		if url.Host == c.domen.Host {
-			c.PushLink(url.String())
-		} else {
-			c.result[url.String()] = "anotherDomen"
-		}
-	} else {
-		isAnchor, _ := regexp.MatchString("#", url.String())
-		if isAnchor {
-			c.result[url.String()] = "Anchor"
-		} else {
-			absolute := c.domen.String() + "/" + url.String()
-			c.PushLink(absolute)
+			c.LinkProcess(link_string)
 		}
 	}
 }
 
-func PrintResponse(result map[string]string) {
-	var ok, failed, domen, queue, anchor int
-	for _, v := range result {
-		switch v {
-		case "ok":
-			ok++
-		case "fail":
-			failed++
-		case "anotherDomen":
-			domen++
-		case "Anchor":
-			anchor++
-		case "inQueue":
-			queue++
+func (c *Crawler) LinkProcess(link_string string) {
+	link, err := NewLink(link_string)
+
+	if err == nil {
+		switch {
+		case link.isSameHost(c.domen):
+			c.PushLink(link.Unify())
+		case link.isRelative():
+			c.PushLink(link.withHost(c.domen))
 		}
 	}
-	fmt.Printf("\tok: %v, queue: %v, domen: %v, anchor: %v, failed: %v\n", ok, queue, domen, anchor, failed)
 }

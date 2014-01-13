@@ -1,7 +1,6 @@
 package crawler
 
 import (
-	"fmt"
 	"github.com/opesun/goquery"
 	"net/http"
 )
@@ -35,26 +34,20 @@ func (w *Worker) Process(link string) {
 func (w *Worker) process(link string) CrawlerResponse {
 	response, err := http.Get(link)
 
-	if err == nil {
-		fmt.Println("processing... ", link, response.Status)
-		defer response.Body.Close()
+	if err != nil {
+	    return CrawlerResponse{success: false, current: link, Status: "Bad Request"}
+	} else {
+        defer response.Body.Close()
+        return ProcessHttpResponse(response, link)
 	}
-
-	switch {
-	case err != nil || response.StatusCode == 404:
-		return CrawlerResponse{success: false, current: link}
-	default:
-		return ProcessHttpResponse(response, link)
-	}
-
 }
 
 func ProcessHttpResponse(resp *http.Response, link string) CrawlerResponse {
 	x, err := goquery.Parse(resp.Body)
-	if err == nil {
-		links := x.Find("a").Attrs("href")
-		return CrawlerResponse{success: true, current: link, links: links}
+	if err != nil || resp.StatusCode == 404 {
+		return CrawlerResponse{success: false, current: link, Status: resp.Status}
 	} else {
-		return CrawlerResponse{success: false, current: link}
+	    links := x.Find("a").Attrs("href")
+        return CrawlerResponse{success: true, current: link, links: links, Status: resp.Status}
 	}
 }
