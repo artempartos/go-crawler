@@ -35,10 +35,10 @@ func (w *Worker) process(link string) CrawlerResponse {
 	response, err := http.Get(link)
 
 	if err != nil {
-	    return CrawlerResponse{success: false, current: link, Status: "Bad Request"}
+		return CrawlerResponse{success: false, current: link, Status: "Bad Request"}
 	} else {
-        defer response.Body.Close()
-        return ProcessHttpResponse(response, link)
+		defer response.Body.Close()
+		return ProcessHttpResponse(response, link)
 	}
 }
 
@@ -47,7 +47,7 @@ func ProcessHttpResponse(resp *http.Response, link string) CrawlerResponse {
 	if err != nil || resp.StatusCode == 404 {
 		return CrawlerResponse{success: false, current: link, Status: resp.Status}
 	} else {
-	    links := x.Find("a").Attrs("href")
-        return CrawlerResponse{success: true, current: link, links: links, Status: resp.Status}
+		links := x.Find("a").Attrs("href")
+		return CrawlerResponse{success: true, current: link, links: links, Status: resp.Status}
 	}
 }

@@ -1,19 +1,20 @@
 package crawler
 
 import (
-	. "launchpad.net/gocheck"
+	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
-func (s *MySuite) TestWorkerChan(c *C) {
+func TestWorkerChan(t *testing.T) {
 	workerChan := make(workerChan)
 	worker := NewWorker(workerChan, nil)
 
 	worker.Run()
 	w := <-workerChan
-	c.Assert(w, Equals, worker)
+	assert.Equal(t, w, worker)
 }
 
-func (s *MySuite) TestWorkerProcessing(c *C) {
+func TestWorkerProcessing(t *testing.T) {
 	respChan := make(responseChan)
 	workerChan := make(workerChan)
 	worker := NewWorker(workerChan, respChan)
@@ -23,5 +24,5 @@ func (s *MySuite) TestWorkerProcessing(c *C) {
 	w.Process("http://nox73.ru/")
 
 	response := <-respChan
-	c.Assert(response.success, Equals, true)
+	assert.True(t, response.success)
 }

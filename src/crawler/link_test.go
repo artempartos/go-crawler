@@ -1,34 +1,35 @@
 package crawler
 
 import (
-	. "launchpad.net/gocheck"
+	"github.com/stretchr/testify/assert"
 	"net/url"
+	"testing"
 )
 
-func (s *MySuite) TestCorrectNewLink(c *C) {
+func TestCorrectNewLink(t *testing.T) {
 	testUrl := "http://correct.url"
 	link, err := NewLink(testUrl)
 
-	c.Assert(err, Equals, nil)
-	c.Assert(link.url, NotNil)
-	c.Assert(testUrl, Equals, link.url.String())
+	assert.Nil(t, err)
+	assert.NotNil(t, link.url)
+	assert.Equal(t, testUrl, link.url.String())
 }
 
-func (s *MySuite) TestFailNewLink(c *C) {
+func TestFailNewLink(t *testing.T) {
 	testUrl := "/user/%USER_ID%/votes"
 	link, err := NewLink(testUrl)
 
-	c.Assert(err, NotNil)
-	c.Assert(link, IsNil)
+	assert.NotNil(t, err)
+	assert.Nil(t, link)
 }
 
-func (s *MySuite) TestLinkFunc(c *C) {
+func TestLinkFunc(t *testing.T) {
 	testUrl := "/test"
 	link, _ := NewLink(testUrl)
-	c.Assert(link.isRelative(), Equals, true)
+	assert.True(t, link.isRelative())
 
 	host, _ := url.Parse("http://example.ru")
 	absUrl := link.withHost(host)
 	absLink, _ := NewLink(absUrl)
-	c.Assert(absLink.isSameHost(host), Equals, true)
+	assert.True(t, absLink.isSameHost(host))
 }
